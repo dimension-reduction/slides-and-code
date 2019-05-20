@@ -1,0 +1,62 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Loads Keras
+```{r}
+library(keras)
+```
+
+# Loads MNIST dataset - images of digits with size 28x28.
+# Then transforms images into vectors and re-scales between 0 and 1.
+```{r}
+img_dim <- 28*28
+mnist <- dataset_mnist()
+x_train <- mnist$train$x
+x_train <- array_reshape(x_train, c(nrow(x_train), img_dim))
+x_train <- x_train / 255
+```
+
+# Builds 2-dimensional linear autoencoder for MNIST dataset.
+# The first layer is the encoder and the second is the decoder.
+```{r}
+latent_dim <- 2
+model <- keras_model_sequential()
+model %>%
+  layer_dense(units = latent_dim, activation = "linear", input_shape = img_dim) %>% 
+  layer_dense(units = img_dim, activation = "linear")
+summary(model)
+```
+
+# Compiles model and trains on MNIST dataset
+```{r}
+model %>% compile(loss = "mean_squared_error", 
+                  optimizer = optimizer_adadelta())
+history <- model %>% fit(x_train, epochs = 200, batch_size = 64)
+```
+
+# Plots training loss
+```{r}
+plot(history)
+```
+
+# Gets weights from model
+```{r}
+weights <- get_weights(model)
+w2 <- weights[[1]]
+```
+
+# Runs PCA on MNIST data to compare to autoencoder PCs
+```{r}
+pca_results <- prcomp(x_train, center = FALSE, scale. = FALSE)
+pcs <- pca_results$rotation
+```
+
+# Plots first dimension of weights and PCA PCs
+```{r}
+col = gray(seq(0, 1, length = 256))
+par(mfrow = c(1,2))
+image(array_reshape(w2[,1], c(28, 28)), useRaster=TRUE, axes=FALSE, col=col)
+image(array_reshape(pcs[,1], c(28, 28)), useRaster=TRUE, axes=FALSE, col=col)
+```
